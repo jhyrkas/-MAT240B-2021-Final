@@ -234,6 +234,8 @@ struct MyApp : App {
   int s_limit; // length of sample
   int frame_limit; // maximum frames (based on audio input length)
 
+  float interp; // later on we'll be trying time-varying or real-time checking
+
   std::vector<Sine> sine;
   std::vector<std::vector<Entry>> peaks1;
   std::vector<std::vector<Entry>> peaks2;
@@ -254,7 +256,6 @@ struct MyApp : App {
 
     drwav_close(pWav1);
 
-    std::cout << "done audio 1\n";
     // audio 2
     drwav* pWav2 = drwav_open_file(argv[2]);
     if (pWav2 == nullptr) {
@@ -268,17 +269,14 @@ struct MyApp : App {
 
     drwav_close(pWav2);
     
-    std::cout << "done audio 2\n";
-
     // data
     N = std::atoi(argv[3]);
-    std::cout << pWav1_length << " " << pWav2_length << "\n";
     peaks1 = stft_peaks(pSampleData1, pWav1_length, N);
     peaks2 = stft_peaks(pSampleData2, pWav2_length, N);
     free(pSampleData1);
     free(pSampleData2);
+    interp = std::atof(argv[4]);
 
-    std::cout << "done analysis\n";
     // deal with audio being different lengths, just take the min for now
     s = 0;
     frame_limit = std::min(peaks1.size(), peaks2.size());
@@ -375,8 +373,12 @@ struct MyApp : App {
         // add the next sample from each of the N oscillators
         float f = 0;
         for (int n = 0; n < N; n++) {
-            float freq = (lower_weight * peaks1[low_ind][n].frequency) + (upper_weight * peaks1[high_ind][n].frequency);
-            float amp = ((lower_weight * peaks1[low_ind][n].amplitude) + (upper_weight * peaks1[high_ind][n].amplitude));
+            float freq1 = (lower_weight * peaks1[low_ind][n].frequency) + (upper_weight * peaks1[high_ind][n].frequency);
+            float amp1 = ((lower_weight * peaks1[low_ind][n].amplitude) + (upper_weight * peaks1[high_ind][n].amplitude));
+            float freq2 = (lower_weight * peaks2[low_ind][n].frequency) + (upper_weight * peaks2[high_ind][n].frequency);
+            float amp2 = ((lower_weight * peaks2[low_ind][n].amplitude) + (upper_weight * peaks2[high_ind][n].amplitude));
+            float freq = (1.0-interp)*freq1 + interp*freq2;
+            float amp = (1.0-interp)*amp1 + interp*amp2;
             sine[n].frequency(freq);
             f += amp*sine[n]();
         }
