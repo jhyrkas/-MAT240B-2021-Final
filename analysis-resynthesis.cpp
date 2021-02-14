@@ -232,45 +232,81 @@ struct MyApp : App {
   int N; // the number of sine oscillators to use
   int s; // sample number
   int s_limit; // length of sample
+  int frame_limit; // maximum frames (based on audio input length)
 
   std::vector<Sine> sine;
-  std::vector<std::vector<Entry>> data;
+  std::vector<std::vector<Entry>> peaks1;
+  std::vector<std::vector<Entry>> peaks2;
 
   MyApp(int argc, char *argv[]) {
     // C++ "constructor" called when MyApp is declared
 
-    // wav-read.cpp
-    drwav* pWav = drwav_open_file(argv[1]);
-    if (pWav == nullptr) {
+    // audio 1
+    drwav* pWav1 = drwav_open_file(argv[1]);
+    if (pWav1 == nullptr) {
         throw MyAppCreationException();
     }
 
-    float* pSampleData = (float*)malloc((size_t)pWav->totalPCMFrameCount *
-                                      pWav->channels * sizeof(float));
-    drwav_read_f32(pWav, pWav->totalPCMFrameCount, pSampleData);
+    int pWav1_length = pWav1->totalPCMFrameCount;
+    float* pSampleData1 = (float*)malloc((size_t)pWav1_length *
+                                      pWav1->channels * sizeof(float));
+    drwav_read_f32(pWav1, pWav1_length, pSampleData1);
 
-    drwav_close(pWav);
+    drwav_close(pWav1);
 
-    N = std::atoi(argv[2]);
+    std::cout << "done audio 1\n";
+    // audio 2
+    drwav* pWav2 = drwav_open_file(argv[2]);
+    if (pWav2 == nullptr) {
+        throw MyAppCreationException();
+    }
 
-    data = stft_peaks(pSampleData, pWav->totalPCMFrameCount, N);
-    free(pSampleData);
+    int pWav2_length = pWav2->totalPCMFrameCount;
+    float* pSampleData2 = (float*)malloc((size_t)pWav2_length *
+                                      pWav2->channels * sizeof(float));
+    drwav_read_f32(pWav1, pWav2_length, pSampleData2);
+
+    drwav_close(pWav2);
+    
+    std::cout << "done audio 2\n";
+
+    // data
+    N = std::atoi(argv[3]);
+    std::cout << pWav1_length << " " << pWav2_length << "\n";
+    peaks1 = stft_peaks(pSampleData1, pWav1_length, N);
+    peaks2 = stft_peaks(pSampleData2, pWav2_length, N);
+    free(pSampleData1);
+    free(pSampleData2);
+
+    std::cout << "done analysis\n";
+    // deal with audio being different lengths, just take the min for now
+    s = 0;
+    frame_limit = std::min(peaks1.size(), peaks2.size());
+    s_limit = frame_limit * 1024; // hop size
 
     // need big time gain normalization here
-    double max_amp = 0.0;
-    for (int i = 0; i < data.size(); i++) {
+    double max_amp1 = 0.0;
+    for (int i = 0; i < peaks1.size(); i++) {
         for (int j = 0; j < N; j++) {
-            max_amp = std::max(max_amp, data[i][j].amplitude);
+            max_amp1 = std::max(max_amp1, peaks1[i][j].amplitude);
         }
     }
-    for (int i = 0; i < data.size(); i++) {
+    for (int i = 0; i < peaks1.size(); i++) {
         for (int j = 0; j < N; j++) {
-            data[i][j].amplitude /= max_amp;
+            peaks1[i][j].amplitude /= max_amp1;
         }
     }
-
-    s = 0;
-    s_limit = data.size() * 1024; // hop size
+    double max_amp2 = 0.0;
+    for (int i = 0; i < peaks2.size(); i++) {
+        for (int j = 0; j < N; j++) {
+            max_amp2 = std::max(max_amp2, peaks2[i][j].amplitude);
+        }
+    }
+    for (int i = 0; i < peaks2.size(); i++) {
+        for (int j = 0; j < N; j++) {
+            peaks2[i][j].amplitude /= max_amp2;
+        }
+    }
   }
 
   void onInit() override {
@@ -324,14 +360,14 @@ struct MyApp : App {
   void onSound(AudioIOData &io) override {
     while (io()) {
         float t_val = float(this->s) / this->s_limit; // time from 0 to 1
-        float frac_ind = t_val * data.size();
+        float frac_ind = t_val * frame_limit;
         int low_ind = (int)frac_ind;
         int high_ind = low_ind + 1;
-        if (low_ind >= data.size()) {
-            low_ind = data.size() - 1;
+        if (low_ind >= frame_limit) {
+            low_ind = frame_limit - 1;
         }
-        if (high_ind >= data.size()) {
-            high_ind = data.size() - 1;
+        if (high_ind >= frame_limit) {
+            high_ind = frame_limit - 1;
         }
         float upper_weight = frac_ind - low_ind;
         float lower_weight = 1.0 - upper_weight;
@@ -339,8 +375,8 @@ struct MyApp : App {
         // add the next sample from each of the N oscillators
         float f = 0;
         for (int n = 0; n < N; n++) {
-            float freq = (lower_weight * data[low_ind][n].frequency) + (upper_weight * data[high_ind][n].frequency);
-            float amp = ((lower_weight * data[low_ind][n].amplitude) + (upper_weight * data[high_ind][n].amplitude));
+            float freq = (lower_weight * peaks1[low_ind][n].frequency) + (upper_weight * peaks1[high_ind][n].frequency);
+            float amp = ((lower_weight * peaks1[low_ind][n].amplitude) + (upper_weight * peaks1[high_ind][n].amplitude));
             sine[n].frequency(freq);
             f += amp*sine[n]();
         }
@@ -374,9 +410,9 @@ int main(int argc, char *argv[]) {
     // MyApp constructor called here, given arguments from the command line
     MyApp app(argc, argv);
 
-    //app.configureAudio(48000, 512, 2, 1);
+    app.configureAudio(48000, 512, 2, 1);
     // seems like i need to really decrease the audio rate to stop clicking
-    app.configureAudio(22050, 512, 2, 1);
+    //app.configureAudio(22050, 512, 2, 1);
 
     // Start the AlloLib framework's "app" construct. This blocks until the app is
     // quit (or it crashes).
