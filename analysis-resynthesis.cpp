@@ -227,14 +227,13 @@ using namespace al;
 
 struct MyApp : App {
   Parameter background{"background", "", 0.0, "", 0.0f, 1.0f};
+  Parameter interp_p{"interstrapolation", "", 0.0, "", -1.0f, 2.0f};
   ControlGUI gui;
 
   int N; // the number of sine oscillators to use
   int s; // sample number
   int s_limit; // length of sample
   int frame_limit; // maximum frames (based on audio input length)
-
-  float interp; // later on we'll be trying time-varying or real-time checking
 
   std::vector<Sine> sine;
   std::vector<std::vector<Entry>> peaks1;
@@ -275,7 +274,6 @@ struct MyApp : App {
     peaks2 = stft_peaks(pSampleData2, pWav2_length, N);
     free(pSampleData1);
     free(pSampleData2);
-    interp = std::atof(argv[4]);
 
     // deal with audio being different lengths, just take the min for now
     s = 0;
@@ -326,7 +324,7 @@ struct MyApp : App {
     nav().pos(Vec3d(0, 0, 8));  // Set the camera to view the scene
 
     gui << background;
-    //gui << t;
+    gui << interp_p;
     gui.init();
 
     // Disable nav control; So default keyboard and mouse control is disabled
@@ -356,6 +354,8 @@ struct MyApp : App {
   }
 
   void onSound(AudioIOData &io) override {
+    // don't need to check this sample by sample
+    float interp = interp_p.get();
     while (io()) {
         float t_val = float(this->s) / this->s_limit; // time from 0 to 1
         float frac_ind = t_val * frame_limit;
