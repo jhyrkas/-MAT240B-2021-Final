@@ -377,14 +377,14 @@ struct MyApp : App {
             float amp1 = ((lower_weight * peaks1[low_ind][n].amplitude) + (upper_weight * peaks1[high_ind][n].amplitude));
             float freq2 = (lower_weight * peaks2[low_ind][n].frequency) + (upper_weight * peaks2[high_ind][n].frequency);
             float amp2 = ((lower_weight * peaks2[low_ind][n].amplitude) + (upper_weight * peaks2[high_ind][n].amplitude));
-            float freq = (1.0-interp)*freq1 + interp*freq2;
+            float freq = std::abs((1.0-interp)*freq1 + interp*freq2); // extrapolating can lead to negative frequencies
             float amp = (1.0-interp)*amp1 + interp*amp2;
             sine[n].frequency(freq);
             f += amp*sine[n]();
+            //std::cout << n << " " << freq << "\n";
         }
         // reduce amplitude and limit
         // limiting becomes very important when extrapolating
-        // TODO: got some weird sounds when extrapolating that are not consistent...
         f = std::max(std::min(1.0f, f / N), -1.0f);
         io.out(0) = f;
         io.out(1) = f;
