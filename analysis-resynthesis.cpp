@@ -382,7 +382,10 @@ struct MyApp : App {
             sine[n].frequency(freq);
             f += amp*sine[n]();
         }
-        f /= N;  // reduce the amplitude of the result
+        // reduce amplitude and limit
+        // limiting becomes very important when extrapolating
+        // TODO: got some weird sounds when extrapolating that are not consistent...
+        f = std::max(std::min(1.0f, f / N), -1.0f);
         io.out(0) = f;
         io.out(1) = f;
         this->s += 1;
