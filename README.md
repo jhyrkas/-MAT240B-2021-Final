@@ -8,3 +8,7 @@ under the Creative Commons Attribution-NonCommercial 4.0 International License (
 
 Allolib is licensed under the BSD-3 Clause (https://github.com/AlloSphere-Research-Group/allolib/blob/master/LICENSE)
 The Audio Transport algorithm and code is copyright Theia Henderson, April 2019.
+
+TODO:
+
+This repo will contain more source code and a fuller list of dependencies
