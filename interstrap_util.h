@@ -1,6 +1,7 @@
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
 
+// loading audio for stft peaks analysis
 void load(std::vector<float> &input, const char *filePath) {
   unsigned int channels;
   unsigned int sampleRate;
