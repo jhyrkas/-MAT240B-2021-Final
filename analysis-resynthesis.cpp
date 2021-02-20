@@ -14,10 +14,14 @@
 #include <valarray>
 #include <vector>
 
+#include <audio_transport/spectral.hpp>
+#include <audio_transport/audio_transport.hpp>
+
 #include "al/app/al_App.hpp"
 #include "al/ui/al_ControlGUI.hpp"
 #include "al/ui/al_Parameter.hpp"
 #include "dr_wav.h"
+#include "interstrap_util.h" // load()
 
 // define free functions (functions not associated with any class) here
 //
@@ -134,13 +138,14 @@ double* hann_window() {
     return window;
 }
 
-std::vector<std::vector<Entry>> stft_peaks(float* data, int data_length, int N) {
+std::vector<std::vector<Entry>> stft_peaks(std::vector<float> data, int N) {
     std::vector<std::vector<Entry>> entries;
 
     double* window = hann_window();
     int hop_size = 1024;
     int nfft = 8192;
     int window_size = 2048;
+    int data_length = data.size();
 
     int nframes = ceil(data_length / float(hop_size));
 
@@ -242,6 +247,7 @@ struct MyApp : App {
   MyApp(int argc, char *argv[]) {
     // C++ "constructor" called when MyApp is declared
 
+    /* old way
     // audio 1
     drwav* pWav1 = drwav_open_file(argv[1]);
     if (pWav1 == nullptr) {
@@ -255,6 +261,7 @@ struct MyApp : App {
 
     drwav_close(pWav1);
 
+
     // audio 2
     drwav* pWav2 = drwav_open_file(argv[2]);
     if (pWav2 == nullptr) {
@@ -267,13 +274,20 @@ struct MyApp : App {
     drwav_read_f32(pWav1, pWav2_length, pSampleData2);
 
     drwav_close(pWav2);
-    
+    */
+
+    // new way    
+    std::vector<float> pSampleData1;
+    load(pSampleData1, argv[1]);
+    std::vector<float> pSampleData2;
+    load(pSampleData2, argv[2]);
+
     // data
     N = std::atoi(argv[3]);
-    peaks1 = stft_peaks(pSampleData1, pWav1_length, N);
-    peaks2 = stft_peaks(pSampleData2, pWav2_length, N);
-    free(pSampleData1);
-    free(pSampleData2);
+    peaks1 = stft_peaks(pSampleData1, N);
+    peaks2 = stft_peaks(pSampleData2, N);
+    //free(pSampleData1);
+    //free(pSampleData2);
 
     // deal with audio being different lengths, just take the min for now
     s = 0;
@@ -303,6 +317,9 @@ struct MyApp : App {
             peaks2[i][j].amplitude /= max_amp2;
         }
     }
+
+    std::cout << peaks1.size() << " " << peaks2.size() << " " << frame_limit << "\n";
+    std::cout << "done with all of the analysis!\n";
   }
 
   void onInit() override {
