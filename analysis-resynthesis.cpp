@@ -15,8 +15,8 @@
 #include <vector>
 
 // audio transport stuff
-#include <audio_transport/spectral.hpp>
-#include <audio_transport/audio_transport.hpp>
+#include "audio_transport/spectral.hpp"
+#include "audio_transport/audio_transport.hpp"
 
 #include "al/app/al_App.hpp"
 #include "al/ui/al_ControlGUI.hpp"
@@ -117,8 +117,8 @@ struct MyApp : App {
     N = std::atoi(argv[3]);
     peaks1 = stft_peaks(pSampleData1, N, SAMPLE_RATE);
     peaks2 = stft_peaks(pSampleData2, N, SAMPLE_RATE);
-    //free(pSampleData1);
-    //free(pSampleData2);
+
+    // sinusoid peaks
 
     // deal with audio being different lengths, just take the min for now
     s = 0;
@@ -148,6 +148,21 @@ struct MyApp : App {
             peaks2[i][j].amplitude /= max_amp2;
         }
     }
+
+    // audio transport
+
+    // change?
+    double window_size = 0.05; // seconds
+    unsigned int padding = 7; // multiplies window size
+
+
+    std::vector<double> transport_data1 = audio_transport_input(pSampleData1);
+    std::vector<double> transport_data2 = audio_transport_input(pSampleData2);
+
+    // trying it
+    //double something = audio_transport::spectral::hann(1, 10);
+    std::vector<std::vector<audio_transport::spectral::point>> points_left =
+      audio_transport::spectral::analysis(transport_data1, SAMPLE_RATE, window_size, padding);
   }
 
   void onInit() override {

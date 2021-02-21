@@ -1,3 +1,5 @@
+#include <vector>
+
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
 
@@ -28,4 +30,13 @@ void load(std::vector<float> &input, const char *filePath) {
   }
 
   drwav_free(pSampleData, NULL);
+}
+
+// convert audio from load() to a format that audio transport wants
+std::vector<double> audio_transport_input(std::vector<float> data) {
+    std::vector<double> outp;
+    for (int i = 0; i < data.size(); i++) {
+        outp.push_back(data[i]);
+    }
+    return outp;
 }
