@@ -101,10 +101,15 @@ struct MyApp : App {
   int s; // sample number
   int s_limit; // length of sample
   int frame_limit; // maximum frames (based on audio input length)
+  int playback_mode; // sinusoid, audio transport, silent
 
+  // synthesis params
   std::vector<Sine> sine;
   std::vector<std::vector<Entry>> peaks1;
   std::vector<std::vector<Entry>> peaks2;
+  std::vector<std::vector<audio_transport::spectral::point>> points_left;
+  std::vector<std::vector<audio_transport::spectral::point>> points_right;
+  std::vector<double> transport_audio;
 
   MyApp(int argc, char *argv[]) {
     // C++ "constructor" called when MyApp is declared
@@ -124,6 +129,7 @@ struct MyApp : App {
     s = 0;
     frame_limit = std::min(peaks1.size(), peaks2.size());
     s_limit = frame_limit * 1024; // hop size
+    playback_mode = 0;
 
     // need big time gain normalization here
     double max_amp1 = 0.0;
@@ -155,14 +161,11 @@ struct MyApp : App {
     double window_size = 0.05; // seconds
     unsigned int padding = 7; // multiplies window size
 
-
     std::vector<double> transport_data1 = audio_transport_input(pSampleData1);
     std::vector<double> transport_data2 = audio_transport_input(pSampleData2);
 
-    // trying it
-    //double something = audio_transport::spectral::hann(1, 10);
-    std::vector<std::vector<audio_transport::spectral::point>> points_left =
-      audio_transport::spectral::analysis(transport_data1, SAMPLE_RATE, window_size, padding);
+    points_left = audio_transport::spectral::analysis(transport_data1, SAMPLE_RATE, window_size, padding);
+    points_right = audio_transport::spectral::analysis(transport_data2, SAMPLE_RATE, window_size, padding);
   }
 
   void onInit() override {
@@ -216,52 +219,95 @@ struct MyApp : App {
   void onSound(AudioIOData &io) override {
     // don't need to check this sample by sample
     float interp = interp_p.get();
-    while (io()) {
-        float t_val = float(this->s) / this->s_limit; // time from 0 to 1
-        float frac_ind = t_val * frame_limit;
-        int low_ind = (int)frac_ind;
-        int high_ind = low_ind + 1;
-        if (low_ind >= frame_limit) {
-            low_ind = frame_limit - 1;
-        }
-        if (high_ind >= frame_limit) {
-            high_ind = frame_limit - 1;
-        }
-        float upper_weight = frac_ind - low_ind;
-        float lower_weight = 1.0 - upper_weight;
+    switch (playback_mode) {
+        case 0 : // sinusoidal model
+            while (io()) {
+                float t_val = float(this->s) / this->s_limit; // time from 0 to 1
+                float frac_ind = t_val * frame_limit;
+                int low_ind = (int)frac_ind;
+                int high_ind = low_ind + 1;
+                if (low_ind >= frame_limit) {
+                    low_ind = frame_limit - 1;
+                }
+                if (high_ind >= frame_limit) {
+                    high_ind = frame_limit - 1;
+                }
+                float upper_weight = frac_ind - low_ind;
+                float lower_weight = 1.0 - upper_weight;
 
-        // add the next sample from each of the N oscillators
-        float f = 0;
-        for (int n = 0; n < N; n++) {
-            float freq1 = (lower_weight * peaks1[low_ind][n].frequency) + (upper_weight * peaks1[high_ind][n].frequency);
-            float amp1 = ((lower_weight * peaks1[low_ind][n].amplitude) + (upper_weight * peaks1[high_ind][n].amplitude));
-            float freq2 = (lower_weight * peaks2[low_ind][n].frequency) + (upper_weight * peaks2[high_ind][n].frequency);
-            float amp2 = ((lower_weight * peaks2[low_ind][n].amplitude) + (upper_weight * peaks2[high_ind][n].amplitude));
-            float freq = std::abs((1.0-interp)*freq1 + interp*freq2); // extrapolating can lead to negative frequencies
-            float amp = (1.0-interp)*amp1 + interp*amp2;
-            sine[n].frequency(freq);
-            f += amp*sine[n]();
-            //std::cout << n << " " << freq << "\n";
-        }
-        // reduce amplitude and limit
-        // limiting becomes very important when extrapolating
-        f = std::max(std::min(1.0f, f / N), -1.0f);
-        io.out(0) = f;
-        io.out(1) = f;
-        this->s += 1;
-        // if statement is probably actually faster than a modulo
-        if (this->s == this->s_limit) {
+                // add the next sample from each of the N oscillators
+                float f = 0;
+                for (int n = 0; n < N; n++) {
+                    float freq1 = (lower_weight * peaks1[low_ind][n].frequency) + (upper_weight * peaks1[high_ind][n].frequency);
+                    float amp1 = ((lower_weight * peaks1[low_ind][n].amplitude) + (upper_weight * peaks1[high_ind][n].amplitude));
+                    float freq2 = (lower_weight * peaks2[low_ind][n].frequency) + (upper_weight * peaks2[high_ind][n].frequency);
+                    float amp2 = ((lower_weight * peaks2[low_ind][n].amplitude) + (upper_weight * peaks2[high_ind][n].amplitude));
+                    float freq = std::abs((1.0-interp)*freq1 + interp*freq2); // extrapolating can lead to negative frequencies
+                    float amp = (1.0-interp)*amp1 + interp*amp2;
+                    sine[n].frequency(freq);
+                    f += amp*sine[n]();
+                }
+                // reduce amplitude and limit
+                // limiting becomes very important when extrapolating
+                f = std::max(std::min(1.0f, f / N), -1.0f);
+                io.out(0) = f;
+                io.out(1) = f;
+                this->s += 1;
+                // if statement is probably actually faster than a modulo
+                if (this->s == this->s_limit) {
+                    this->s = 0;
+                }
+            }
+            break;
+        case 1 : // audio transport
+            // TODO: fill in
+            // break;
+        default : // silence (usually means that audio transport is being calculated
             this->s = 0;
-        }
+            // based on convo with karl, better to spit out zeros than exit
+            while (io()) {
+                io.out(0) = 0.0f;
+                io.out(1) = 0.0f;
+            }
     }
+
   }
 
   bool onKeyDown(const Keyboard &k) override {
+    int ascii = k.key();
+
+    if (ascii == 49) { // '1'
+        recalculate_audio_transport();
+    }
     return true;
   }
 
   bool onKeyUp(const Keyboard &k) override {
     return true;
+  }
+
+  void recalculate_audio_transport() {
+    // trying it
+    // largely from audio transport repo examples (i.e. transport_sine.cpp)
+    // Initialize phases
+    std::vector<double> phases(points_left[0].size(), 0);
+    size_t num_windows = std::min(points_left.size(), points_right.size());
+    std::vector<std::vector<audio_transport::spectral::point>> points_interpolated(num_windows);
+
+    // change?
+    double window_size = 0.05; // seconds
+    unsigned int padding = 7; // multiplies window size
+
+    // right now i'm not going to check for ranges because i think beyond [0-1] might work
+    float interp = interp_p.get();
+    for (size_t w = 0; w < num_windows; w++) {
+        points_interpolated[w] = 
+        audio_transport::interpolate(points_left[w], points_right[w], phases, window_size, interp);
+    }
+
+    // memory leak? (should we free the old vector if it is non-empty?)
+    transport_audio = audio_transport::spectral::synthesis(points_interpolated, padding);
+    std::cout << "did it\n";
   }
 };
 
