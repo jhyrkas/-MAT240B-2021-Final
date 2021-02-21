@@ -260,8 +260,18 @@ struct MyApp : App {
             }
             break;
         case 1 : // audio transport
-            // TODO: fill in
-            // break;
+            while (io()) {
+                // will this automatically cast?
+                io.out(0) = transport_audio[this->s];
+                io.out(1) = transport_audio[this->s]; 
+
+                this->s += 1;
+                // TODO: s limit should be the same as above but check this if we start crashing
+                if (this->s == transport_audio.size()) {
+                    this->s = 0;
+                }   
+            }
+            break;
         default : // silence (usually means that audio transport is being calculated
             this->s = 0;
             // based on convo with karl, better to spit out zeros than exit
@@ -276,8 +286,16 @@ struct MyApp : App {
   bool onKeyDown(const Keyboard &k) override {
     int ascii = k.key();
 
+    // thread safe-ness of this whole thing is questionable
     if (ascii == 49) { // '1'
+        this->s = 0;
+        playback_mode = 0;
+    }
+    else if (ascii == 50) { // '2'
+        playback_mode = 2; // silence
         recalculate_audio_transport();
+        this->s = 0;
+        playback_mode = 1; // audio transport
     }
     return true;
   }
