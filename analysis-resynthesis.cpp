@@ -95,6 +95,7 @@ using namespace al;
 struct MyApp : App {
   Parameter background{"background", "", 0.0, "", 0.0f, 1.0f};
   Parameter interp_p{"interstrapolation", "", 0.0, "", -1.0f, 2.0f};
+  Parameter amp{"amplitude", "", 0.5, "", 0.0f, 1.5f};
   ControlGUI gui;
 
   int N; // the number of sine oscillators to use
@@ -188,6 +189,7 @@ struct MyApp : App {
 
     gui << background;
     gui << interp_p;
+    gui << amp;
     gui.init();
 
     // Disable nav control; So default keyboard and mouse control is disabled
@@ -219,6 +221,7 @@ struct MyApp : App {
   void onSound(AudioIOData &io) override {
     // don't need to check this sample by sample
     float interp = interp_p.get();
+    float ampl = amp.get();
     switch (playback_mode) {
         case 0 : // sinusoidal model
             while (io()) {
@@ -250,8 +253,8 @@ struct MyApp : App {
                 // reduce amplitude and limit
                 // limiting becomes very important when extrapolating
                 f = std::max(std::min(1.0f, f / N), -1.0f);
-                io.out(0) = f;
-                io.out(1) = f;
+                io.out(0) = f * ampl;
+                io.out(1) = f * ampl;
                 this->s += 1;
                 // if statement is probably actually faster than a modulo
                 if (this->s == this->s_limit) {
@@ -262,8 +265,8 @@ struct MyApp : App {
         case 1 : // audio transport
             while (io()) {
                 // will this automatically cast?
-                io.out(0) = transport_audio[this->s];
-                io.out(1) = transport_audio[this->s]; 
+                io.out(0) = transport_audio[this->s] * ampl;
+                io.out(1) = transport_audio[this->s] * ampl; 
 
                 this->s += 1;
                 // TODO: s limit should be the same as above but check this if we start crashing
