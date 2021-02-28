@@ -23,6 +23,7 @@
 #include "al/ui/al_Parameter.hpp"
 #include "dr_wav.h"
 #include "interstrap_util.h" // load()
+#include "nfd.h" // native file dialog
 #include "stft_peaks.h" // stft peaks for sinusoidal model
 
 // SYNTHESIS FUNCTIONS
@@ -333,7 +334,23 @@ struct MyApp : App {
 };
 
 int main(int argc, char *argv[]) {
-    // wav-read.cpp
+    // testing native file dialog
+    nfdchar_t *outPath = NULL;
+    nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
+
+    if (result == NFD_OKAY) {
+        puts("Success!");
+        puts(outPath);
+        free(outPath);
+    } else if (result == NFD_CANCEL) {
+        puts("User pressed cancel.");
+    } else {
+        printf("Error: %s\n", NFD_GetError());
+    }
+
+    // now do real stuff
+    
+    // TODO: update
     if (argc < 3) {
         printf("usage: analysis-resynthesis wav-file num-oscs");
         return 1;
