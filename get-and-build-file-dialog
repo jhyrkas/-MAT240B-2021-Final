@@ -2,7 +2,7 @@
 
 # script by Karl Yerkes
 
-git clone https://github.com/mlabbe/nativefiledialog
+git clone https://github.com/kybr/nativefiledialog
 pushd nativefiledialog/build/gmake_macosx
 make
 popd
