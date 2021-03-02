@@ -115,13 +115,18 @@ struct MyApp : App {
 
   MyApp(int argc, char *argv[]) {
     // C++ "constructor" called when MyApp is declared
+    N = std::atoi(argv[3]);
+    calculate_synthesis_features(argv[1], argv[2]);
+  }
+
+  // called from constructor and also when calculating new features for new files
+  void calculate_synthesis_features(char* path1, char* path2) {
     std::vector<float> pSampleData1;
-    load(pSampleData1, argv[1]);
+    load(pSampleData1, path1);
     std::vector<float> pSampleData2;
-    load(pSampleData2, argv[2]);
+    load(pSampleData2, path2);
 
     // data
-    N = std::atoi(argv[3]);
     peaks1 = stft_peaks(pSampleData1, N, SAMPLE_RATE);
     peaks2 = stft_peaks(pSampleData2, N, SAMPLE_RATE);
 
@@ -300,6 +305,10 @@ struct MyApp : App {
         recalculate_audio_transport();
         this->s = 0;
         playback_mode = 1; // audio transport
+    } else if (ascii == 51) { // '3'
+        playback_mode = 2; // silence
+        read_new_files();
+        playback_mode = 0; // reset to sinusoidal
     }
     return true;
   }
@@ -331,24 +340,41 @@ struct MyApp : App {
     transport_audio = audio_transport::spectral::synthesis(points_interpolated, padding);
     std::cout << "did it\n";
   }
+
+  // create new synthesis features based on user-selected files
+  void read_new_files() {
+    nfdchar_t *file1 = NULL;
+    nfdresult_t result1 = NFD_OpenDialog(NULL, NULL, &file1);
+
+    if (result1 == NFD_OKAY) {
+        puts("Success!");
+    } else if (result1 == NFD_CANCEL) {
+        puts("User pressed cancel.");
+        return;
+    } else {
+        printf("Error: %s\n", NFD_GetError());
+        return;
+    }
+
+    nfdchar_t *file2 = NULL;
+    nfdresult_t result2 = NFD_OpenDialog(NULL, NULL, &file2);
+
+    if (result2 == NFD_OKAY) {
+        puts("Success!");
+    } else if (result2 == NFD_CANCEL) {
+        puts("User pressed cancel.");
+        return;
+    } else {
+        printf("Error: %s\n", NFD_GetError());
+        return;
+    }
+
+    // only recalculate things if the user has chosen two files
+    calculate_synthesis_features(file1, file2); // will this conversion work?
+  }
 };
 
 int main(int argc, char *argv[]) {
-    // testing native file dialog
-    nfdchar_t *outPath = NULL;
-    nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
-
-    if (result == NFD_OKAY) {
-        puts("Success!");
-        puts(outPath);
-        free(outPath);
-    } else if (result == NFD_CANCEL) {
-        puts("User pressed cancel.");
-    } else {
-        printf("Error: %s\n", NFD_GetError());
-    }
-
-    // now do real stuff
     
     // TODO: update
     if (argc < 3) {
