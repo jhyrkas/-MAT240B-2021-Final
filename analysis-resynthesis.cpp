@@ -97,6 +97,7 @@ struct MyApp : App {
   Parameter background{"background", "", 0.0, "", 0.0f, 1.0f};
   Parameter interp_p{"interstrapolation", "", 0.0, "", -1.0f, 2.0f};
   Parameter amp{"amplitude", "", 0.5, "", 0.0f, 1.5f};
+  ParameterBool pick_files{"Pick audio files", "", 0, "", 0, 1};
   ControlGUI gui;
 
   int N; // the number of sine oscillators to use
@@ -196,6 +197,7 @@ struct MyApp : App {
     gui << background;
     gui << interp_p;
     gui << amp;
+    gui << pick_files;
     gui.init();
 
     // Disable nav control; So default keyboard and mouse control is disabled
@@ -204,10 +206,12 @@ struct MyApp : App {
 
   void onAnimate(double dt) override {
     // called over and over just before onDraw
-    //t.set(t.get() + dt * 0.03);
-    //if (t > 1) {
-    //  t.set(t.get() - 1);
-    //}
+    if (pick_files.get()) {
+        pick_files.set(false);
+        playback_mode = 2; // silence
+        read_new_files();
+        playback_mode = 0; // reset to sinusoidal
+    }
   }
 
   void onDraw(Graphics &g) override {
