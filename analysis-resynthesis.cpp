@@ -98,6 +98,7 @@ struct MyApp : App {
   Parameter interp_p{"interstrapolation", "", 0.0, "", -1.0f, 2.0f};
   Parameter amp{"amplitude", "", 0.5, "", 0.0f, 1.5f};
   ParameterBool pick_files{"Pick audio files", "", 0, "", 0, 1};
+  ParameterBool change_playback{"Change Synthesis Method", "", 0, "", 0, 1};
   ControlGUI gui;
 
   int N; // the number of sine oscillators to use
@@ -198,6 +199,7 @@ struct MyApp : App {
     gui << interp_p;
     gui << amp;
     gui << pick_files;
+    gui << change_playback;
     gui.init();
 
     // Disable nav control; So default keyboard and mouse control is disabled
@@ -206,6 +208,18 @@ struct MyApp : App {
 
   void onAnimate(double dt) override {
     // called over and over just before onDraw
+    if (change_playback.get()) {
+        change_playback.set(false);
+        if (playback_mode == 0) {
+            playback_mode = 2; // silence
+            recalculate_audio_transport();
+            this->s = 0;
+            playback_mode = 1; // audio transport
+        } else if (playback_mode == 1) {
+            this->s = 0;
+            playback_mode = 0;
+        }
+    }
     if (pick_files.get()) {
         pick_files.set(false);
         playback_mode = 2; // silence
@@ -342,7 +356,6 @@ struct MyApp : App {
 
     // memory leak? (should we free the old vector if it is non-empty?)
     transport_audio = audio_transport::spectral::synthesis(points_interpolated, padding);
-    std::cout << "did it\n";
   }
 
   // create new synthesis features based on user-selected files
@@ -351,9 +364,7 @@ struct MyApp : App {
     nfdresult_t result1 = NFD_OpenDialog(NULL, NULL, &file1);
 
     if (result1 == NFD_OKAY) {
-        puts("Success!");
     } else if (result1 == NFD_CANCEL) {
-        puts("User pressed cancel.");
         return;
     } else {
         printf("Error: %s\n", NFD_GetError());
@@ -364,9 +375,7 @@ struct MyApp : App {
     nfdresult_t result2 = NFD_OpenDialog(NULL, NULL, &file2);
 
     if (result2 == NFD_OKAY) {
-        puts("Success!");
     } else if (result2 == NFD_CANCEL) {
-        puts("User pressed cancel.");
         return;
     } else {
         printf("Error: %s\n", NFD_GetError());
@@ -382,7 +391,7 @@ int main(int argc, char *argv[]) {
     
     // TODO: update
     if (argc < 3) {
-        printf("usage: analysis-resynthesis wav-file num-oscs");
+        printf("usage: analysis-resynthesis wav-file1 wav-file2 num-oscs");
         return 1;
     }
 
