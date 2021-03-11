@@ -212,12 +212,15 @@ struct MyApp : App {
         change_playback.set(false);
         if (playback_mode == 0) {
             playback_mode = 2; // silence
-            recalculate_audio_transport();
-            this->s = 0;
-            playback_mode = 1; // audio transport
+            if (recalculate_audio_transport()) {
+                this->s = 0;
+                playback_mode = 1; // audio transport
+            } else {
+                playback_mode = 0; // sinusoidal
+            }
         } else if (playback_mode == 1) {
             this->s = 0;
-            playback_mode = 0;
+            playback_mode = 0; // sinusoidal
         }
     }
     if (pick_files.get()) {
@@ -320,13 +323,16 @@ struct MyApp : App {
     }
     else if (ascii == 50) { // '2'
         playback_mode = 2; // silence
-        recalculate_audio_transport();
-        this->s = 0;
-        playback_mode = 1; // audio transport
+        if (recalculate_audio_transport()) {
+            this->s = 0;
+            playback_mode = 1; // audio transport
+        } else {
+            playback_mode = 0; // sinusoidal
+        }
     } else if (ascii == 51) { // '3'
         playback_mode = 2; // silence
         read_new_files();
-        playback_mode = 0; // reset to sinusoidal
+        playback_mode = 0; // sinusoidal
     }
     return true;
   }
@@ -335,27 +341,29 @@ struct MyApp : App {
     return true;
   }
 
-  void recalculate_audio_transport() {
-    // trying it
+  bool recalculate_audio_transport() {
+    float interp = interp_p.get();
+    if (interp < 0.0f || interp > 1.0f) {
+        std::cerr << "Audio transport cannot extrapolate\n";
+        return false;
+    }
+    
     // largely from audio transport repo examples (i.e. transport_sine.cpp)
     // Initialize phases
     std::vector<double> phases(points_left[0].size(), 0);
     size_t num_windows = std::min(points_left.size(), points_right.size());
     std::vector<std::vector<audio_transport::spectral::point>> points_interpolated(num_windows);
 
-    // change?
     double window_size = 0.05; // seconds
     unsigned int padding = 7; // multiplies window size
 
-    // right now i'm not going to check for ranges because i think beyond [0-1] might work
-    float interp = interp_p.get();
     for (size_t w = 0; w < num_windows; w++) {
         points_interpolated[w] = 
         audio_transport::interpolate(points_left[w], points_right[w], phases, window_size, interp);
     }
 
-    // memory leak? (should we free the old vector if it is non-empty?)
     transport_audio = audio_transport::spectral::synthesis(points_interpolated, padding);
+    return true;
   }
 
   // create new synthesis features based on user-selected files
@@ -383,7 +391,7 @@ struct MyApp : App {
     }
 
     // only recalculate things if the user has chosen two files
-    calculate_synthesis_features(file1, file2); // will this conversion work?
+    calculate_synthesis_features(file1, file2);
   }
 };
 
@@ -398,8 +406,6 @@ int main(int argc, char *argv[]) {
     MyApp app(argc, argv);
 
     app.configureAudio(48000, 512, 2, 1);
-    // seems like i need to really decrease the audio rate to stop clicking
-    //app.configureAudio(22050, 512, 2, 1);
 
     // Start the AlloLib framework's "app" construct. This blocks until the app is
     // quit (or it crashes).
