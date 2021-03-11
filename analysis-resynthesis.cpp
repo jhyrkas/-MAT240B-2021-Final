@@ -389,9 +389,8 @@ struct MyApp : App {
 
 int main(int argc, char *argv[]) {
     
-    // TODO: update
-    if (argc < 3) {
-        printf("usage: analysis-resynthesis wav-file1 wav-file2 num-oscs");
+    if (argc < 4) {
+        printf("usage: analysis-resynthesis wav-file1 wav-file2 num-oscs\n");
         return 1;
     }
 
