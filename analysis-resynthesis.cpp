@@ -106,6 +106,7 @@ struct MyApp : App {
   ParameterBool pick_files{"Pick audio files", "", 0, "", 0, 1};
   ParameterBool change_playback{"Change Synthesis Method", "", 0, "", 0, 1};
   ControlGUI gui;
+  FunctionFromMax functionFromMax{this}; // interpolation path
 
   int N; // the number of sine oscillators to use
   int s; // sample number
@@ -198,7 +199,7 @@ struct MyApp : App {
   void onCreate() override {
     // called a single time (in a graphics context) before onAnimate or onDraw
     //
-
+    functionFromMax.onCreate();
     nav().pos(Vec3d(0, 0, 8));  // Set the camera to view the scene
 
     gui << background;
@@ -246,7 +247,7 @@ struct MyApp : App {
     g.clear(background);
     //
     //
-
+    functionFromMax.onDraw(g);
     // Draw th GUI
     gui.draw(g);
   }
@@ -346,6 +347,38 @@ struct MyApp : App {
   bool onKeyUp(const Keyboard &k) override {
     return true;
   }
+
+  // bunch of stuff from karl's maxfunction main.cpp
+  bool onMouseDrag(const Mouse& m) override {
+    functionFromMax.onMouseDrag(m);
+    return false;
+  }
+
+  bool onMouseDown(const Mouse& m) override {
+    functionFromMax.onMouseDown(m);
+    return false;
+  }
+
+  bool onMouseUp(const Mouse& m) override {
+    functionFromMax.onMouseUp(m);
+
+    //
+    // Look here; This is how you access the normalized points
+    //
+    printf("\n========================================\n");
+    for (auto p : functionFromMax.points()) {
+      p.print();
+      printf("\n");
+    }
+    return false;
+  }
+
+  bool onMouseMove(const Mouse& m) override {
+    functionFromMax.onMouseMove(m);
+    return false;
+  }
+
+  // end cp+pst from karl's main
 
   bool recalculate_audio_transport() {
     float interp = interp_p.get();
