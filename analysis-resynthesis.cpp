@@ -276,6 +276,9 @@ struct MyApp : App {
   void onSound(AudioIOData &io) override {
     // don't need to check this sample by sample
     float interp = interp_p.get();
+    if (using_path) {
+        interp = interp_amount(this->s, this->s_limit);
+    }
     float ampl = amp.get();
     switch (playback_mode) {
         case 0 : // sinusoidal model
