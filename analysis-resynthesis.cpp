@@ -105,14 +105,18 @@ struct MyApp : App {
   Parameter amp{"amplitude", "", 0.5, "", 0.0f, 1.5f};
   ParameterBool pick_files{"Pick audio files", "", 0, "", 0, 1};
   ParameterBool change_playback{"Change Synthesis Method", "", 0, "", 0, 1};
+  ParameterBool use_path{"Use Interpolation Path", "", 0, "", 0, 1};
   ControlGUI gui;
-  FunctionFromMax functionFromMax{this}; // interpolation path
+  FunctionFromMax interpolation_path{this}; // interpolation path
 
   int N; // the number of sine oscillators to use
   int s; // sample number
   int s_limit; // length of sample
   int frame_limit; // maximum frames (based on audio input length)
   int playback_mode; // sinusoid, audio transport, silent
+
+  // using in conjunction with use_path button to check a change is necessary
+  bool using_path;
 
   // synthesis params
   std::vector<Sine> sine;
@@ -126,6 +130,7 @@ struct MyApp : App {
     // C++ "constructor" called when MyApp is declared
     N = std::atoi(argv[3]);
     calculate_synthesis_features(argv[1], argv[2]);
+    using_path = false;
   }
 
   // called from constructor and also when calculating new features for new files
@@ -199,7 +204,7 @@ struct MyApp : App {
   void onCreate() override {
     // called a single time (in a graphics context) before onAnimate or onDraw
     //
-    functionFromMax.onCreate();
+    interpolation_path.onCreate();
     nav().pos(Vec3d(0, 0, 8));  // Set the camera to view the scene
 
     gui << background;
@@ -207,6 +212,7 @@ struct MyApp : App {
     gui << amp;
     gui << pick_files;
     gui << change_playback;
+    gui << use_path;
     gui.init();
 
     // Disable nav control; So default keyboard and mouse control is disabled
@@ -236,6 +242,21 @@ struct MyApp : App {
         read_new_files();
         playback_mode = 0; // reset to sinusoidal
     }
+
+    // might be overkill, but we need to do something on a button click here,
+    // want to make sure that we only do it once
+    if (use_path.get() && !using_path) {
+        if (interpolation_path.points().size() < 2) {
+            std::cerr << "Need at least 2 points to interpolate.\n";
+            use_path.set(false);
+        } else {
+            using_path = true;
+            // do more?
+        }
+    } else if (!use_path.get() && using_path) {
+        using_path = false;
+        // do more?
+    }
   }
 
   void onDraw(Graphics &g) override {
@@ -247,7 +268,7 @@ struct MyApp : App {
     g.clear(background);
     //
     //
-    functionFromMax.onDraw(g);
+    interpolation_path.onDraw(g);
     // Draw th GUI
     gui.draw(g);
   }
@@ -350,31 +371,22 @@ struct MyApp : App {
 
   // bunch of stuff from karl's maxfunction main.cpp
   bool onMouseDrag(const Mouse& m) override {
-    functionFromMax.onMouseDrag(m);
+    interpolation_path.onMouseDrag(m);
     return false;
   }
 
   bool onMouseDown(const Mouse& m) override {
-    functionFromMax.onMouseDown(m);
+    interpolation_path.onMouseDown(m);
     return false;
   }
 
   bool onMouseUp(const Mouse& m) override {
-    functionFromMax.onMouseUp(m);
-
-    //
-    // Look here; This is how you access the normalized points
-    //
-    printf("\n========================================\n");
-    for (auto p : functionFromMax.points()) {
-      p.print();
-      printf("\n");
-    }
+    interpolation_path.onMouseUp(m);
     return false;
   }
 
   bool onMouseMove(const Mouse& m) override {
-    functionFromMax.onMouseMove(m);
+    interpolation_path.onMouseMove(m);
     return false;
   }
 
@@ -396,13 +408,57 @@ struct MyApp : App {
     double window_size = 0.05; // seconds
     unsigned int padding = 7; // multiplies window size
 
-    for (size_t w = 0; w < num_windows; w++) {
-        points_interpolated[w] = 
-        audio_transport::interpolate(points_left[w], points_right[w], phases, window_size, interp);
+    // error checking outside of here
+    if (using_path) {
+        for (size_t w = 0; w < num_windows; w++) {
+            float interpp = interp_amount(w, num_windows);
+            points_interpolated[w] =
+                audio_transport::interpolate(points_left[w], points_right[w],
+                                            phases, window_size, interpp);
+        }
+    } else {
+        for (size_t w = 0; w < num_windows; w++) {
+            points_interpolated[w] = 
+                audio_transport::interpolate(points_left[w], points_right[w],
+                                             phases, window_size, interp);
+        }
     }
 
     transport_audio = audio_transport::spectral::synthesis(points_interpolated, padding);
     return true;
+  }
+
+  // theoretically can be used for samples and windows
+  float interp_amount(int index, int maximum) {
+    std::vector<al::Vec2f> pts = interpolation_path.points();
+    // this shouldn't happen, but maybe it's better to be safe
+    if (pts.size() < 2) {
+        return interp_p.get();
+    }
+
+
+    float ind = static_cast<float>(index);
+    float max = static_cast<float>(maximum);
+    // maybe unnecessary, trying to avoid silly floating point errors
+    float pos = std::max(0.0f, std::min(1.0f, ind / max));
+
+    int start_index = -1;
+    // utilizes knowledge that pts is ordered
+    for (int i = 0; i < pts.size(); i++) {
+        if (pts[i].x == pos) {
+            return pts[i].y;
+        // this means we have found the upper index
+        } else if (pts[i].x > pos) {
+            break;
+        }
+        start_index = i;
+    }
+
+    int end_index = start_index + 1;
+    float lower_weight = (pts[end_index].x - pos) / (pts[end_index].x - pts[start_index].x);
+    float upper_weight = 1.0 - lower_weight;
+
+    return (pts[start_index].y * lower_weight) + (pts[end_index].y * upper_weight);
   }
 
   // create new synthesis features based on user-selected files
