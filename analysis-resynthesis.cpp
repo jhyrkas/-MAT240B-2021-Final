@@ -19,12 +19,18 @@
 #include "audio_transport/audio_transport.hpp"
 
 #include "al/app/al_App.hpp"
+#include "al/math/al_Functions.hpp"  // al::clip
+#include "al/math/al_Random.hpp"
+#include "al/math/al_Ray.hpp"
 #include "al/ui/al_ControlGUI.hpp"
 #include "al/ui/al_Parameter.hpp"
 #include "dr_wav.h"
 #include "interstrap_util.h" // load()
+#include "Max-Function-Like/Function-From-Max.hpp" // drawing interpolation path
 #include "nfd.h" // native file dialog
 #include "stft_peaks.h" // stft peaks for sinusoidal model
+
+//using namespace al;
 
 // SYNTHESIS FUNCTIONS
 
@@ -413,3 +419,5 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+
+#include "Max-Function-Like/Function-From-Max.cpp"

@@ -6,17 +6,17 @@
 struct MyApp;
 class FunctionFromMax {
   MyApp* app;
-  Mesh circle;
-  Mesh line;
-  std::vector<Vec3f> point;
+  al::Mesh circle;
+  al::Mesh line;
+  std::vector<al::Vec3f> point;
   std::vector<bool> hover;
 
   //
   // Helper Methods
   //
 
-  Vec3d unproject(Vec3d screenPos);
-  Rayd getPickRay(int screenX, int screenY);
+  al::Vec3d unproject(al::Vec3d screenPos);
+  al::Rayd getPickRay(int screenX, int screenY);
 
  public:
   FunctionFromMax(MyApp* that);
@@ -25,10 +25,10 @@ class FunctionFromMax {
   std::vector<al::Vec2f> points();
 
   void onCreate();
-  void onDraw(Graphics& g);
-  bool onMouseDrag(const Mouse& m);
-  bool onMouseDown(const Mouse& m);
-  bool onMouseUp(const Mouse& m);
-  bool onMouseMove(const Mouse& m);
+  void onDraw(al::Graphics& g);
+  bool onMouseDrag(const al::Mouse& m);
+  bool onMouseDown(const al::Mouse& m);
+  bool onMouseUp(const al::Mouse& m);
+  bool onMouseMove(const al::Mouse& m);
 };
 
