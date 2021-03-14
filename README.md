@@ -15,6 +15,7 @@ No modifications to the core Allolib or Audio Transport libraries are present in
 This application depends on:
 - audiorw (https://github.com/sportdeath/audiorw): installed as a library 
 - audio_transport (https://github.com/sportdeath/audio_transport): installed as a library
+- nativefiledialog (https://github.com/kybr/nativefiledialog): installed locally (run the get-and-build-file-dialog shell script)
 - Alloblib (https://github.com/AlloSphere-Research-Group/allolib): downloaded locally, used to compile the application
 
 A version of dr_wav.h from dr_libs (https://github.com/mackron/dr_libs) is included in this repo, but a future version would (should)
