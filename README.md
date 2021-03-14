@@ -50,7 +50,10 @@ A brief description of audio parameters:
 
 ### Usage tips
 
-TODO
+- Audio will be shortened to the length of the shortest audio clip. No attempt at onset matching is provided
+- Matching like sounds can be interesting (for example, morphing between instruments, voices, instruments and voices, or similar sound effects)
+- Extrapolating moves matched sinusoids away from each other and also approximately inverts the difference in amplitude envelopes of sounds
+- Have fun and watch your ears!
 
 ## Standalone audio transport interpolation
 
