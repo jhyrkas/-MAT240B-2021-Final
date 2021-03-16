@@ -62,7 +62,7 @@ The separate, standalone application transport_standalone can be built similarly
 
 > run.sh -n /path/to/MAT240B-2021-Final/transport_standalone.cpp
 
-This application is similar to a standalone audio transport application (https://github.com/sportdeath/audio_transport/blob/master/example/transport.cpp), but produces audio at a fixed interpolation value between the two target audio sources, rather than an interpolation. It can be run as:
+This application is similar to a standalone audio transport application (https://github.com/sportdeath/audio_transport/blob/master/example/transport.cpp), but produces audio at a fixed interpolation value between the two target audio sources, rather than a portamento. It can be run as:
 
 > transport_standalone in1.wav in2.wav interp_amount out.wav
 
