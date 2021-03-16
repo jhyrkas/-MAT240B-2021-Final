@@ -1,4 +1,4 @@
-# -MAT240B-2021-Final
+# Interstrapolator
 
 This repository contains source code for an Allolib (https://github.com/AlloSphere-Research-Group/allolib) application to 
 interpolate and extrapolate sounds using a sinusoidal synthesis method and using the Audio Transport algorithm  (https://github.com/sportdeath/audio_transport).
